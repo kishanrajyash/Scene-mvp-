@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, Users } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -51,12 +52,33 @@ export default function Header({ user }: HeaderProps) {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="relative p-2">
-              <Bell className="h-5 w-5 text-gray-600" />
-              <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative p-2">
+                  <Bell className="h-5 w-5 text-gray-600" />
+                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    3
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuItem className="flex flex-col items-start p-3">
+                  <div className="font-medium">New match found!</div>
+                  <div className="text-sm text-muted-foreground">You have a 95% compatibility with Alex for hiking</div>
+                  <div className="text-xs text-muted-foreground mt-1">2 hours ago</div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex flex-col items-start p-3">
+                  <div className="font-medium">Scene joined</div>
+                  <div className="text-sm text-muted-foreground">Mike joined your "Weekend Photography Walk"</div>
+                  <div className="text-xs text-muted-foreground mt-1">5 hours ago</div>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex flex-col items-start p-3">
+                  <div className="font-medium">Unit invitation</div>
+                  <div className="text-sm text-muted-foreground">Sarah invited you to join "Morning Runners"</div>
+                  <div className="text-xs text-muted-foreground mt-1">1 day ago</div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {user && (
               <div className="flex items-center space-x-2">
