@@ -253,36 +253,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Personality Quiz Component */}
+            {/* Personality Quiz Component - Only show if not completed */}
             {!user.quizCompleted && <PersonalityQuiz userId={user.id} />}
-            
-            {/* Demo Quiz Button for Testing */}
-            {user.quizCompleted && (
-              <Card className="animate-fade-in border-dashed border-2 border-purple-200 bg-purple-50">
-                <CardHeader>
-                  <CardTitle className="text-lg text-purple-900">Try the Personality Quiz</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-purple-700 mb-4">
-                    Experience our interactive personality assessment that helps create better matches.
-                  </p>
-                  <Button 
-                    onClick={() => {
-                      // Reset quiz completion status for demo
-                      queryClient.setQueryData([`/api/user/${currentUserId}`], (oldData: UserWithDetails | undefined) => {
-                        if (oldData) {
-                          return { ...oldData, quizCompleted: false };
-                        }
-                        return oldData;
-                      });
-                    }}
-                    className="bg-purple-600 text-white hover:bg-purple-700"
-                  >
-                    Demo Personality Quiz
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
 
             {/* My Activities */}
             <Card className="animate-fade-in">

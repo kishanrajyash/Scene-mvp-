@@ -50,8 +50,8 @@ export default function Units() {
       description: "",
       creatorId: currentUserId,
       category: "",
-      preferredDays: "",
-      preferredTimeSlots: "",
+      preferredDays: [] as string[],
+      preferredTimeSlots: [] as string[],
       maxMembers: 6,
     },
   });
@@ -80,10 +80,9 @@ export default function Units() {
     // Convert arrays to comma-separated strings for database storage
     const processedData = {
       ...data,
-      preferredDays: Array.isArray(data.preferredDays) ? data.preferredDays.join(",") : data.preferredDays,
-      preferredTimeSlots: Array.isArray(data.preferredTimes) ? data.preferredTimes.join(",") : data.preferredTimes,
+      preferredDays: Array.isArray(data.preferredDays) ? data.preferredDays.join(",") : data.preferredDays || "",
+      preferredTimeSlots: Array.isArray(data.preferredTimeSlots) ? data.preferredTimeSlots.join(",") : data.preferredTimeSlots || "",
     };
-    delete processedData.preferredTimes; // Remove the old field name
     createUnitMutation.mutate(processedData);
   };
 
@@ -213,7 +212,7 @@ export default function Units() {
                             control={form.control}
                             name="preferredDays"
                             render={({ field }) => {
-                              const currentValue = field.value || [];
+                              const currentValue = Array.isArray(field.value) ? field.value : [];
                               return (
                                 <FormItem
                                   key={day}
@@ -225,7 +224,7 @@ export default function Units() {
                                       onCheckedChange={(checked) => {
                                         const newValue = checked
                                           ? [...currentValue, day]
-                                          : currentValue.filter((value) => value !== day);
+                                          : currentValue.filter((value: string) => value !== day);
                                         field.onChange(newValue);
                                       }}
                                     />
@@ -246,7 +245,7 @@ export default function Units() {
 
                 <FormField
                   control={form.control}
-                  name="preferredTimes"
+                  name="preferredTimeSlots"
                   render={() => (
                     <FormItem>
                       <FormLabel>Preferred Times</FormLabel>
@@ -255,9 +254,9 @@ export default function Units() {
                           <FormField
                             key={time}
                             control={form.control}
-                            name="preferredTimes"
+                            name="preferredTimeSlots"
                             render={({ field }) => {
-                              const currentValue = field.value || [];
+                              const currentValue = Array.isArray(field.value) ? field.value : [];
                               return (
                                 <FormItem
                                   key={time}
@@ -269,7 +268,7 @@ export default function Units() {
                                       onCheckedChange={(checked) => {
                                         const newValue = checked
                                           ? [...currentValue, time]
-                                          : currentValue.filter((value) => value !== time);
+                                          : currentValue.filter((value: string) => value !== time);
                                         field.onChange(newValue);
                                       }}
                                     />
@@ -330,20 +329,20 @@ export default function Units() {
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                     <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span className="capitalize truncate">{unit.category || unit.activityCategory}</span>
+                    <span className="capitalize truncate">{(unit as any).category || (unit as any).activityCategory}</span>
                   </div>
                   
-                  {unit.preferredDays && (
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                  {(unit as any).preferredDays && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600 mb-3">
                       <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                      <span className="capitalize text-xs leading-relaxed">
-                        {typeof unit.preferredDays === 'string' 
-                          ? unit.preferredDays.split(',').map(d => d.trim()).join(', ')
-                          : Array.isArray(unit.preferredDays) 
-                            ? unit.preferredDays.join(', ')
-                            : unit.preferredDays
+                      <span className="capitalize text-xs leading-relaxed line-clamp-2">
+                        {typeof (unit as any).preferredDays === 'string' 
+                          ? (unit as any).preferredDays.split(',').map((d: string) => d.trim()).join(', ')
+                          : Array.isArray((unit as any).preferredDays) 
+                            ? (unit as any).preferredDays.join(', ')
+                            : (unit as any).preferredDays
                         }
                       </span>
                     </div>
@@ -351,7 +350,7 @@ export default function Units() {
                   
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className="text-xs text-muted-foreground">
-                      {unit.memberCount || 0} / {unit.maxMembers || 6} members
+                      {unit.memberCount || 0} / {(unit as any).maxMembers || 6} members
                     </span>
                     <Button 
                       variant="outline" 
@@ -392,34 +391,34 @@ export default function Units() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold mb-2">Category</h3>
-                  <p className="text-gray-600 capitalize">{selectedUnit.category || selectedUnit.activityCategory}</p>
+                  <p className="text-gray-600 capitalize">{(selectedUnit as any).category || (selectedUnit as any).activityCategory}</p>
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Members</h3>
-                  <p className="text-gray-600">{selectedUnit.memberCount || 0} / {selectedUnit.maxMembers || 6}</p>
+                  <p className="text-gray-600">{selectedUnit.memberCount || 0} / {(selectedUnit as any).maxMembers || 6}</p>
                 </div>
-                {selectedUnit.preferredDays && (
+                {(selectedUnit as any).preferredDays && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Days</h3>
                     <p className="text-gray-600 capitalize">
-                      {typeof selectedUnit.preferredDays === 'string' 
-                        ? selectedUnit.preferredDays.split(',').map(d => d.trim()).join(', ')
-                        : Array.isArray(selectedUnit.preferredDays) 
-                          ? selectedUnit.preferredDays.join(', ')
-                          : selectedUnit.preferredDays
+                      {typeof (selectedUnit as any).preferredDays === 'string' 
+                        ? (selectedUnit as any).preferredDays.split(',').map((d: string) => d.trim()).join(', ')
+                        : Array.isArray((selectedUnit as any).preferredDays) 
+                          ? (selectedUnit as any).preferredDays.join(', ')
+                          : (selectedUnit as any).preferredDays
                       }
                     </p>
                   </div>
                 )}
-                {selectedUnit.preferredTimeSlots && (
+                {(selectedUnit as any).preferredTimeSlots && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Times</h3>
                     <p className="text-gray-600 capitalize">
-                      {typeof selectedUnit.preferredTimeSlots === 'string' 
-                        ? selectedUnit.preferredTimeSlots.split(',').map(t => t.trim()).join(', ')
-                        : Array.isArray(selectedUnit.preferredTimeSlots) 
-                          ? selectedUnit.preferredTimeSlots.join(', ')
-                          : selectedUnit.preferredTimeSlots
+                      {typeof (selectedUnit as any).preferredTimeSlots === 'string' 
+                        ? (selectedUnit as any).preferredTimeSlots.split(',').map((t: string) => t.trim()).join(', ')
+                        : Array.isArray((selectedUnit as any).preferredTimeSlots) 
+                          ? (selectedUnit as any).preferredTimeSlots.join(', ')
+                          : (selectedUnit as any).preferredTimeSlots
                       }
                     </p>
                   </div>
@@ -439,11 +438,11 @@ export default function Units() {
                           <div>
                             <p className="font-medium">{member.user.username}</p>
                             <p className="text-sm text-gray-500">
-                              Joined {new Date(member.joinedAt).toLocaleDateString()}
+                              Joined {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Recently'}
                             </p>
                           </div>
                         </div>
-                        {selectedUnit.creatorId === member.userId && (
+                        {(selectedUnit as any).creatorId === member.userId && (
                           <span className="text-xs bg-primary text-white px-2 py-1 rounded">Creator</span>
                         )}
                       </div>
@@ -458,12 +457,12 @@ export default function Units() {
                 <Button variant="outline" onClick={() => setSelectedUnit(null)} className="flex-1">
                   Close
                 </Button>
-                {selectedUnit.creatorId !== currentUserId && (
+                {(selectedUnit as any).creatorId !== currentUserId && (
                   <Button className="flex-1">
                     Join Unit
                   </Button>
                 )}
-                {selectedUnit.creatorId === currentUserId && (
+                {(selectedUnit as any).creatorId === currentUserId && (
                   <Button variant="outline" className="flex-1">
                     Manage Unit
                   </Button>
