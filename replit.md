@@ -1,8 +1,8 @@
-# ActivityMatch Platform
+# Scene Platform
 
 ## Overview
 
-ActivityMatch is a full-stack web application designed to connect people based on shared interests and compatible personalities for group activities. The platform uses personality assessments, activity preferences, and availability matching to suggest meaningful connections between users.
+Scene is a full-stack web application designed to connect people based on shared interests and compatible personalities for group activities. The platform uses personality assessments, activity preferences, and availability matching to suggest meaningful connections between users.
 
 ## System Architecture
 
@@ -148,4 +148,5 @@ Changelog:
 
 ```
 Preferred communication style: Simple, everyday language.
+App name: Scene (not ActivityMatch)
 ```

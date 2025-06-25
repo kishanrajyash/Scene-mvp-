@@ -28,7 +28,7 @@ export default function Header({ user }: HeaderProps) {
             <Link href="/">
               <div className="flex items-center space-x-2 cursor-pointer">
                 <Users className="text-primary text-2xl" />
-                <span className="text-xl font-semibold text-gray-900">ActivityMatch</span>
+                <span className="text-xl font-semibold text-gray-900">Scene</span>
               </div>
             </Link>
           </div>
