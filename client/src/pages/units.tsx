@@ -48,18 +48,18 @@ export default function Units() {
     defaultValues: {
       name: "",
       description: "",
-      createdBy: currentUserId,
-      activityCategory: "",
-      preferredDays: [],
-      preferredTimes: [],
-      isActive: true,
+      creatorId: currentUserId,
+      category: "",
+      preferredDays: "",
+      preferredTimeSlots: "",
+      maxMembers: 6,
     },
   });
 
   const createUnitMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/units", "POST", data),
+    mutationFn: (data: any) => apiRequest("POST", "/api/units", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/units/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/units/user", currentUserId] });
       setIsCreateDialogOpen(false);
       form.reset();
       toast({
@@ -77,7 +77,14 @@ export default function Units() {
   });
 
   const onSubmit = (data: any) => {
-    createUnitMutation.mutate(data);
+    // Convert arrays to comma-separated strings for database storage
+    const processedData = {
+      ...data,
+      preferredDays: Array.isArray(data.preferredDays) ? data.preferredDays.join(",") : data.preferredDays,
+      preferredTimeSlots: Array.isArray(data.preferredTimes) ? data.preferredTimes.join(",") : data.preferredTimes,
+    };
+    delete processedData.preferredTimes; // Remove the old field name
+    createUnitMutation.mutate(processedData);
   };
 
   if (isLoading) {
@@ -150,7 +157,7 @@ export default function Units() {
 
                 <FormField
                   control={form.control}
-                  name="activityCategory"
+                  name="category"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Activity Category</FormLabel>
@@ -162,12 +169,32 @@ export default function Units() {
                         </FormControl>
                         <SelectContent>
                           {ACTIVITY_CATEGORIES.map((category) => (
-                            <SelectItem key={category} value={category}>
+                            <SelectItem key={category} value={category.toLowerCase()}>
                               {category}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="maxMembers"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Members</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="2" 
+                          max="20"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -186,6 +213,7 @@ export default function Units() {
                             control={form.control}
                             name="preferredDays"
                             render={({ field }) => {
+                              const currentValue = field.value || [];
                               return (
                                 <FormItem
                                   key={day}
@@ -193,15 +221,12 @@ export default function Units() {
                                 >
                                   <FormControl>
                                     <Checkbox
-                                      checked={field.value?.includes(day)}
+                                      checked={currentValue.includes(day)}
                                       onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, day])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== day
-                                              )
-                                            )
+                                        const newValue = checked
+                                          ? [...currentValue, day]
+                                          : currentValue.filter((value) => value !== day);
+                                        field.onChange(newValue);
                                       }}
                                     />
                                   </FormControl>
@@ -232,6 +257,7 @@ export default function Units() {
                             control={form.control}
                             name="preferredTimes"
                             render={({ field }) => {
+                              const currentValue = field.value || [];
                               return (
                                 <FormItem
                                   key={time}
@@ -239,15 +265,12 @@ export default function Units() {
                                 >
                                   <FormControl>
                                     <Checkbox
-                                      checked={field.value?.includes(time)}
+                                      checked={currentValue.includes(time)}
                                       onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, time])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== time
-                                              )
-                                            )
+                                        const newValue = checked
+                                          ? [...currentValue, time]
+                                          : currentValue.filter((value) => value !== time);
+                                        field.onChange(newValue);
                                       }}
                                     />
                                   </FormControl>
@@ -295,40 +318,48 @@ export default function Units() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {units.map((unit) => (
-            <Card key={unit.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {unit.name}
+            <Card key={unit.id} className="hover:shadow-md transition-shadow h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg leading-tight">
+                  <Users className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{unit.name}</span>
                 </CardTitle>
-                <CardDescription>{unit.description}</CardDescription>
+                <CardDescription className="text-sm line-clamp-2 min-h-[2.5rem]">
+                  {unit.description}
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4" />
-                    <span>{unit.activityCategory}</span>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 flex-shrink-0" />
+                    <span className="capitalize truncate">{unit.category || unit.activityCategory}</span>
                   </div>
                   
-                  {unit.preferredDays && unit.preferredDays.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4" />
-                      <span className="capitalize">
-                        {unit.preferredDays.join(", ")}
+                  {unit.preferredDays && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <span className="capitalize text-xs leading-relaxed">
+                        {typeof unit.preferredDays === 'string' 
+                          ? unit.preferredDays.split(',').map(d => d.trim()).join(', ')
+                          : Array.isArray(unit.preferredDays) 
+                            ? unit.preferredDays.join(', ')
+                            : unit.preferredDays
+                        }
                       </span>
                     </div>
                   )}
                   
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-sm text-muted-foreground">
-                      {unit.memberCount} member{unit.memberCount !== 1 ? "s" : ""}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className="text-xs text-muted-foreground">
+                      {unit.memberCount || 0} / {unit.maxMembers || 6} members
                     </span>
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => setSelectedUnit(unit)}
+                      className="text-xs px-3 py-1 h-7"
                     >
-                      View Details
+                      View
                     </Button>
                   </div>
                 </div>
@@ -361,25 +392,35 @@ export default function Units() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold mb-2">Category</h3>
-                  <p className="text-gray-600">{selectedUnit.activityCategory}</p>
+                  <p className="text-gray-600 capitalize">{selectedUnit.category || selectedUnit.activityCategory}</p>
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Members</h3>
-                  <p className="text-gray-600">{selectedUnit.memberCount} member{selectedUnit.memberCount !== 1 ? "s" : ""}</p>
+                  <p className="text-gray-600">{selectedUnit.memberCount || 0} / {selectedUnit.maxMembers || 6}</p>
                 </div>
-                {selectedUnit.preferredDays && selectedUnit.preferredDays.length > 0 && (
+                {selectedUnit.preferredDays && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Days</h3>
                     <p className="text-gray-600 capitalize">
-                      {selectedUnit.preferredDays.join(", ")}
+                      {typeof selectedUnit.preferredDays === 'string' 
+                        ? selectedUnit.preferredDays.split(',').map(d => d.trim()).join(', ')
+                        : Array.isArray(selectedUnit.preferredDays) 
+                          ? selectedUnit.preferredDays.join(', ')
+                          : selectedUnit.preferredDays
+                      }
                     </p>
                   </div>
                 )}
-                {selectedUnit.preferredTimes && selectedUnit.preferredTimes.length > 0 && (
+                {selectedUnit.preferredTimeSlots && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Times</h3>
                     <p className="text-gray-600 capitalize">
-                      {selectedUnit.preferredTimes.join(", ")}
+                      {typeof selectedUnit.preferredTimeSlots === 'string' 
+                        ? selectedUnit.preferredTimeSlots.split(',').map(t => t.trim()).join(', ')
+                        : Array.isArray(selectedUnit.preferredTimeSlots) 
+                          ? selectedUnit.preferredTimeSlots.join(', ')
+                          : selectedUnit.preferredTimeSlots
+                      }
                     </p>
                   </div>
                 )}
@@ -402,7 +443,7 @@ export default function Units() {
                             </p>
                           </div>
                         </div>
-                        {selectedUnit.createdBy === member.userId && (
+                        {selectedUnit.creatorId === member.userId && (
                           <span className="text-xs bg-primary text-white px-2 py-1 rounded">Creator</span>
                         )}
                       </div>
@@ -417,12 +458,12 @@ export default function Units() {
                 <Button variant="outline" onClick={() => setSelectedUnit(null)} className="flex-1">
                   Close
                 </Button>
-                {selectedUnit.createdBy !== currentUserId && (
+                {selectedUnit.creatorId !== currentUserId && (
                   <Button className="flex-1">
                     Join Unit
                   </Button>
                 )}
-                {selectedUnit.createdBy === currentUserId && (
+                {selectedUnit.creatorId === currentUserId && (
                   <Button variant="outline" className="flex-1">
                     Manage Unit
                   </Button>
