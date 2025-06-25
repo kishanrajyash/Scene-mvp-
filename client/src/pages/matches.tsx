@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Search, RefreshCw, Users } from "lucide-react";
+import { Link } from "wouter";
 import type { UserWithDetails, MatchWithDetails } from "@shared/schema";
 
 export default function Matches() {

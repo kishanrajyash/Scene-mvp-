@@ -32,6 +32,7 @@ const TIME_SLOTS = [
 
 export default function Units() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<UnitWithDetails | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -322,7 +323,11 @@ export default function Units() {
                     <span className="text-sm text-muted-foreground">
                       {unit.memberCount} member{unit.memberCount !== 1 ? "s" : ""}
                     </span>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedUnit(unit)}
+                    >
                       View Details
                     </Button>
                   </div>
@@ -332,6 +337,101 @@ export default function Units() {
           ))}
         </div>
       )}
+
+      {/* Unit Details Dialog */}
+      <Dialog open={!!selectedUnit} onOpenChange={() => setSelectedUnit(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {selectedUnit?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Unit details and member information
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUnit && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold mb-2">Description</h3>
+                <p className="text-gray-600">{selectedUnit.description}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Category</h3>
+                  <p className="text-gray-600">{selectedUnit.activityCategory}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Members</h3>
+                  <p className="text-gray-600">{selectedUnit.memberCount} member{selectedUnit.memberCount !== 1 ? "s" : ""}</p>
+                </div>
+                {selectedUnit.preferredDays && selectedUnit.preferredDays.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Preferred Days</h3>
+                    <p className="text-gray-600 capitalize">
+                      {selectedUnit.preferredDays.join(", ")}
+                    </p>
+                  </div>
+                )}
+                {selectedUnit.preferredTimes && selectedUnit.preferredTimes.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Preferred Times</h3>
+                    <p className="text-gray-600 capitalize">
+                      {selectedUnit.preferredTimes.join(", ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Members</h3>
+                <div className="space-y-2">
+                  {selectedUnit.members && selectedUnit.members.length > 0 ? (
+                    selectedUnit.members.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
+                            {member.user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{member.user.username}</p>
+                            <p className="text-sm text-gray-500">
+                              Joined {new Date(member.joinedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        {selectedUnit.createdBy === member.userId && (
+                          <span className="text-xs bg-primary text-white px-2 py-1 rounded">Creator</span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No members yet. Be the first to join!</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => setSelectedUnit(null)} className="flex-1">
+                  Close
+                </Button>
+                {selectedUnit.createdBy !== currentUserId && (
+                  <Button className="flex-1">
+                    Join Unit
+                  </Button>
+                )}
+                {selectedUnit.createdBy === currentUserId && (
+                  <Button variant="outline" className="flex-1">
+                    Manage Unit
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
