@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { 
   insertUserSchema, insertActivitySchema, insertAvailabilitySchema, 
   insertResourceSchema, insertUserAnswerSchema, insertMatchSchema,
+  insertUnitSchema, insertSceneSchema, insertSceneParticipantSchema, insertAnalyticsEventSchema,
   type User, type Activity, type Match
 } from "@shared/schema";
 import { z } from "zod";
@@ -285,6 +286,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Match not found" });
       }
       res.json(match);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Unit routes
+  app.post("/api/units", async (req, res) => {
+    try {
+      const unitData = insertUnitSchema.parse(req.body);
+      const unit = await storage.createUnit(unitData);
+      
+      // Log analytics event
+      await storage.logEvent({
+        userId: unit.createdBy,
+        eventType: "unit_created",
+        eventData: { unitId: unit.id, unitName: unit.name }
+      });
+      
+      res.status(201).json({ 
+        message: "Unit created successfully!",
+        unit 
+      });
+    } catch (error) {
+      console.error("Error creating unit:", error);
+      res.status(500).json({ message: "Failed to create unit" });
+    }
+  });
+
+  app.get("/api/units/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const units = await storage.getUserUnits(parseInt(userId));
+      res.json(units);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/units/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const unit = await storage.getUnitById(parseInt(id));
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+      res.json(unit);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/units/:id/members", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body;
+      
+      const member = await storage.addUnitMember({
+        unitId: parseInt(id),
+        userId: parseInt(userId),
+        role: "member"
+      });
+      
+      res.json(member);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Scene routes
+  app.post("/api/scenes", async (req, res) => {
+    try {
+      const sceneData = insertSceneSchema.parse(req.body);
+      const scene = await storage.createScene(sceneData);
+      
+      // Log analytics event
+      await storage.logEvent({
+        userId: scene.createdBy,
+        eventType: "scene_created",
+        eventData: { sceneId: scene.id, sceneName: scene.name }
+      });
+      
+      res.status(201).json({ 
+        message: "Scene created successfully!",
+        scene 
+      });
+    } catch (error) {
+      console.error("Error creating scene:", error);
+      res.status(500).json({ message: "Failed to create scene" });
+    }
+  });
+
+  app.get("/api/scenes", async (req, res) => {
+    try {
+      const scenes = await storage.getActiveScenes();
+      if (scenes.length === 0) {
+        return res.json({ 
+          scenes: [], 
+          message: "No scenes found. Try creating your own!" 
+        });
+      }
+      res.json({ scenes });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/scenes/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const scene = await storage.getSceneById(parseInt(id));
+      if (!scene) {
+        return res.status(404).json({ message: "Scene not found" });
+      }
+      res.json(scene);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/scenes/:id/join", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const participantData = insertSceneParticipantSchema.parse({
+        ...req.body,
+        sceneId: parseInt(id)
+      });
+      
+      const participant = await storage.joinScene(participantData);
+      
+      // Log analytics event
+      await storage.logEvent({
+        userId: participant.userId,
+        eventType: "scene_joined",
+        eventData: { sceneId: participant.sceneId }
+      });
+      
+      res.json({ 
+        message: "Successfully joined scene!",
+        participant 
+      });
+    } catch (error) {
+      console.error("Error joining scene:", error);
+      res.status(500).json({ message: "Failed to join scene" });
+    }
+  });
+
+  app.delete("/api/scenes/:id/leave", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body;
+      
+      const success = await storage.leaveScene(parseInt(id), userId);
+      if (!success) {
+        return res.status(404).json({ message: "Participation not found" });
+      }
+      
+      res.json({ message: "Successfully left scene" });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/scenes/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const scenes = await storage.getUserScenes(parseInt(userId));
+      res.json(scenes);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Analytics routes
+  app.get("/api/analytics", async (req, res) => {
+    try {
+      const { userId } = req.query;
+      const events = await storage.getAnalytics(userId ? parseInt(userId as string) : undefined);
+      res.json(events);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }

@@ -1,10 +1,14 @@
 import { 
   users, activities, availability, resources, personalityQuestions, userAnswers, matches,
+  units, unitMembers, scenes, sceneParticipants, analyticsEvents,
   type User, type InsertUser, type Activity, type InsertActivity,
   type Availability, type InsertAvailability, type Resource, type InsertResource,
   type PersonalityQuestion, type InsertPersonalityQuestion,
   type UserAnswer, type InsertUserAnswer, type Match, type InsertMatch,
-  type UserWithDetails, type MatchWithDetails
+  type Unit, type InsertUnit, type UnitMember, type InsertUnitMember,
+  type Scene, type InsertScene, type SceneParticipant, type InsertSceneParticipant,
+  type AnalyticsEvent, type InsertAnalyticsEvent,
+  type UserWithDetails, type MatchWithDetails, type UnitWithDetails, type SceneWithDetails
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray } from "drizzle-orm";
@@ -323,5 +327,277 @@ export class DatabaseStorage implements IStorage {
     if (validTraits === 0) return 50;
     const averageDifference = totalDifference / validTraits;
     return Math.max(0, Math.round(100 - averageDifference));
+  }
+
+  // Unit operations
+  async createUnit(insertUnit: InsertUnit): Promise<Unit> {
+    const [unit] = await db
+      .insert(units)
+      .values(insertUnit)
+      .returning();
+    
+    // Add creator as first member
+    await db.insert(unitMembers).values({
+      unitId: unit.id,
+      userId: unit.createdBy,
+      role: "creator"
+    });
+
+    return unit;
+  }
+
+  async getUserUnits(userId: number): Promise<UnitWithDetails[]> {
+    const userUnits = await db
+      .select({
+        unit: units,
+        creator: users,
+        member: unitMembers,
+        memberUser: users
+      })
+      .from(units)
+      .innerJoin(users, eq(units.createdBy, users.id))
+      .innerJoin(unitMembers, eq(unitMembers.unitId, units.id))
+      .innerJoin(users, eq(unitMembers.userId, users.id))
+      .where(eq(unitMembers.userId, userId));
+
+    // Group by unit
+    const unitsMap = new Map<number, UnitWithDetails>();
+    
+    userUnits.forEach(({ unit, creator, member, memberUser }) => {
+      if (!unitsMap.has(unit.id)) {
+        unitsMap.set(unit.id, {
+          ...unit,
+          creator,
+          members: [],
+          memberCount: 0
+        });
+      }
+      
+      const unitDetails = unitsMap.get(unit.id)!;
+      unitDetails.members.push({ ...member, user: memberUser });
+      unitDetails.memberCount = unitDetails.members.length;
+    });
+
+    return Array.from(unitsMap.values());
+  }
+
+  async getUnitById(unitId: number): Promise<UnitWithDetails | undefined> {
+    const unitData = await db
+      .select({
+        unit: units,
+        creator: users,
+        member: unitMembers,
+        memberUser: users
+      })
+      .from(units)
+      .innerJoin(users, eq(units.createdBy, users.id))
+      .leftJoin(unitMembers, eq(unitMembers.unitId, units.id))
+      .leftJoin(users, eq(unitMembers.userId, users.id))
+      .where(eq(units.id, unitId));
+
+    if (unitData.length === 0) return undefined;
+
+    const unit = unitData[0].unit;
+    const creator = unitData[0].creator;
+    const members = unitData
+      .filter(row => row.member && row.memberUser)
+      .map(row => ({ ...row.member!, user: row.memberUser! }));
+
+    return {
+      ...unit,
+      creator,
+      members,
+      memberCount: members.length
+    };
+  }
+
+  async addUnitMember(insertUnitMember: InsertUnitMember): Promise<UnitMember> {
+    const [member] = await db
+      .insert(unitMembers)
+      .values(insertUnitMember)
+      .returning();
+    return member;
+  }
+
+  async removeUnitMember(unitId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(unitMembers)
+      .where(and(eq(unitMembers.unitId, unitId), eq(unitMembers.userId, userId)));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Scene operations
+  async createScene(insertScene: InsertScene): Promise<Scene> {
+    const [scene] = await db
+      .insert(scenes)
+      .values(insertScene)
+      .returning();
+    
+    // Auto-join creator to scene
+    await db.insert(sceneParticipants).values({
+      sceneId: scene.id,
+      userId: scene.createdBy,
+      status: "joined"
+    });
+
+    return scene;
+  }
+
+  async getActiveScenes(): Promise<SceneWithDetails[]> {
+    const sceneData = await db
+      .select({
+        scene: scenes,
+        creator: users,
+        activity: activities,
+        unit: units,
+        participant: sceneParticipants,
+        participantUser: users
+      })
+      .from(scenes)
+      .innerJoin(users, eq(scenes.createdBy, users.id))
+      .leftJoin(activities, eq(scenes.activityId, activities.id))
+      .leftJoin(units, eq(scenes.unitId, units.id))
+      .leftJoin(sceneParticipants, eq(sceneParticipants.sceneId, scenes.id))
+      .leftJoin(users, eq(sceneParticipants.userId, users.id))
+      .where(eq(scenes.status, "open"));
+
+    // Group by scene
+    const scenesMap = new Map<number, SceneWithDetails>();
+    
+    sceneData.forEach(({ scene, creator, activity, unit, participant, participantUser }) => {
+      if (!scenesMap.has(scene.id)) {
+        scenesMap.set(scene.id, {
+          ...scene,
+          creator,
+          activity: activity || undefined,
+          unit: unit || undefined,
+          participants: [],
+          participantCount: 0
+        });
+      }
+      
+      const sceneDetails = scenesMap.get(scene.id)!;
+      if (participant && participantUser && participant.status === "joined") {
+        sceneDetails.participants.push({ ...participant, user: participantUser });
+        sceneDetails.participantCount = sceneDetails.participants.length;
+      }
+    });
+
+    return Array.from(scenesMap.values());
+  }
+
+  async getSceneById(sceneId: number): Promise<SceneWithDetails | undefined> {
+    const sceneData = await db
+      .select({
+        scene: scenes,
+        creator: users,
+        activity: activities,
+        unit: units,
+        participant: sceneParticipants,
+        participantUser: users
+      })
+      .from(scenes)
+      .innerJoin(users, eq(scenes.createdBy, users.id))
+      .leftJoin(activities, eq(scenes.activityId, activities.id))
+      .leftJoin(units, eq(scenes.unitId, units.id))
+      .leftJoin(sceneParticipants, eq(sceneParticipants.sceneId, scenes.id))
+      .leftJoin(users, eq(sceneParticipants.userId, users.id))
+      .where(eq(scenes.id, sceneId));
+
+    if (sceneData.length === 0) return undefined;
+
+    const scene = sceneData[0].scene;
+    const creator = sceneData[0].creator;
+    const activity = sceneData[0].activity;
+    const unit = sceneData[0].unit;
+    const participants = sceneData
+      .filter(row => row.participant && row.participantUser && row.participant.status === "joined")
+      .map(row => ({ ...row.participant!, user: row.participantUser! }));
+
+    return {
+      ...scene,
+      creator,
+      activity: activity || undefined,
+      unit: unit || undefined,
+      participants,
+      participantCount: participants.length
+    };
+  }
+
+  async joinScene(insertSceneParticipant: InsertSceneParticipant): Promise<SceneParticipant> {
+    const [participant] = await db
+      .insert(sceneParticipants)
+      .values(insertSceneParticipant)
+      .returning();
+    return participant;
+  }
+
+  async leaveScene(sceneId: number, userId: number): Promise<boolean> {
+    const [updated] = await db
+      .update(sceneParticipants)
+      .set({ status: "left" })
+      .where(and(eq(sceneParticipants.sceneId, sceneId), eq(sceneParticipants.userId, userId)))
+      .returning();
+    return !!updated;
+  }
+
+  async getUserScenes(userId: number): Promise<SceneWithDetails[]> {
+    const userSceneData = await db
+      .select({
+        scene: scenes,
+        creator: users,
+        activity: activities,
+        unit: units,
+        participant: sceneParticipants,
+        participantUser: users
+      })
+      .from(sceneParticipants)
+      .innerJoin(scenes, eq(sceneParticipants.sceneId, scenes.id))
+      .innerJoin(users, eq(scenes.createdBy, users.id))
+      .leftJoin(activities, eq(scenes.activityId, activities.id))
+      .leftJoin(units, eq(scenes.unitId, units.id))
+      .leftJoin(sceneParticipants, eq(sceneParticipants.sceneId, scenes.id))
+      .leftJoin(users, eq(sceneParticipants.userId, users.id))
+      .where(and(eq(sceneParticipants.userId, userId), eq(sceneParticipants.status, "joined")));
+
+    // Group by scene and return unique scenes
+    const scenesMap = new Map<number, SceneWithDetails>();
+    
+    userSceneData.forEach(({ scene, creator, activity, unit, participant, participantUser }) => {
+      if (!scenesMap.has(scene.id)) {
+        scenesMap.set(scene.id, {
+          ...scene,
+          creator,
+          activity: activity || undefined,
+          unit: unit || undefined,
+          participants: [],
+          participantCount: 0
+        });
+      }
+      
+      const sceneDetails = scenesMap.get(scene.id)!;
+      if (participant && participantUser && participant.status === "joined") {
+        sceneDetails.participants.push({ ...participant, user: participantUser });
+        sceneDetails.participantCount = sceneDetails.participants.length;
+      }
+    });
+
+    return Array.from(scenesMap.values());
+  }
+
+  // Analytics operations
+  async logEvent(insertAnalyticsEvent: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const [event] = await db
+      .insert(analyticsEvents)
+      .values(insertAnalyticsEvent)
+      .returning();
+    return event;
+  }
+
+  async getAnalytics(userId?: number): Promise<AnalyticsEvent[]> {
+    if (userId) {
+      return await db.select().from(analyticsEvents).where(eq(analyticsEvents.userId, userId));
+    }
+    return await db.select().from(analyticsEvents);
   }
 }

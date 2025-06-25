@@ -83,6 +83,57 @@ export const matches = pgTable("matches", {
   matchedAt: timestamp("matched_at").defaultNow(),
 });
 
+export const units = pgTable("units", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  activityCategory: text("activity_category").notNull(),
+  preferredDays: text("preferred_days").array(),
+  preferredTimes: text("preferred_times").array(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const unitMembers = pgTable("unit_members", {
+  id: serial("id").primaryKey(),
+  unitId: integer("unit_id").notNull().references(() => units.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  role: text("role").default("member"), // creator, member
+});
+
+export const scenes = pgTable("scenes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  activityId: integer("activity_id").references(() => activities.id),
+  unitId: integer("unit_id").references(() => units.id),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  maxParticipants: integer("max_participants").default(10),
+  scheduledDate: timestamp("scheduled_date"),
+  location: text("location"),
+  status: text("status").default("open"), // open, full, cancelled, completed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sceneParticipants = pgTable("scene_participants", {
+  id: serial("id").primaryKey(),
+  sceneId: integer("scene_id").notNull().references(() => scenes.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  noteToOthers: text("note_to_others"),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  status: text("status").default("joined"), // joined, left
+});
+
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  eventType: text("event_type").notNull(), // scene_created, scene_joined, unit_created, repeat_usage
+  eventData: jsonb("event_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   activities: many(activities),
@@ -90,7 +141,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   resources: one(resources),
   userAnswers: many(userAnswers),
   matches: many(matches, { relationName: "userMatches" }),
-  matchedWith: many(matches, { relationName: "matchedUserMatches" })
+  matchedWith: many(matches, { relationName: "matchedUserMatches" }),
+  createdUnits: many(units),
+  unitMemberships: many(unitMembers),
+  createdScenes: many(scenes),
+  sceneParticipations: many(sceneParticipants),
+  analyticsEvents: many(analyticsEvents)
 }));
 
 export const activitiesRelations = relations(activities, ({ one, many }) => ({
@@ -147,6 +203,60 @@ export const matchesRelations = relations(matches, ({ one }) => ({
   })
 }));
 
+export const unitsRelations = relations(units, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [units.createdBy],
+    references: [users.id]
+  }),
+  members: many(unitMembers),
+  scenes: many(scenes)
+}));
+
+export const unitMembersRelations = relations(unitMembers, ({ one }) => ({
+  unit: one(units, {
+    fields: [unitMembers.unitId],
+    references: [units.id]
+  }),
+  user: one(users, {
+    fields: [unitMembers.userId],
+    references: [users.id]
+  })
+}));
+
+export const scenesRelations = relations(scenes, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [scenes.createdBy],
+    references: [users.id]
+  }),
+  activity: one(activities, {
+    fields: [scenes.activityId],
+    references: [activities.id]
+  }),
+  unit: one(units, {
+    fields: [scenes.unitId],
+    references: [units.id]
+  }),
+  participants: many(sceneParticipants)
+}));
+
+export const sceneParticipantsRelations = relations(sceneParticipants, ({ one }) => ({
+  scene: one(scenes, {
+    fields: [sceneParticipants.sceneId],
+    references: [scenes.id]
+  }),
+  user: one(users, {
+    fields: [sceneParticipants.userId],
+    references: [users.id]
+  })
+}));
+
+export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [analyticsEvents.userId],
+    references: [users.id]
+  })
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -178,6 +288,31 @@ export const insertUserAnswerSchema = createInsertSchema(userAnswers).omit({
 export const insertMatchSchema = createInsertSchema(matches).omit({
   id: true,
   matchedAt: true,
+});
+
+export const insertUnitSchema = createInsertSchema(units).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUnitMemberSchema = createInsertSchema(unitMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertSceneSchema = createInsertSchema(scenes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSceneParticipantSchema = createInsertSchema(sceneParticipants).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Types
@@ -215,4 +350,35 @@ export type MatchWithDetails = Match & {
   distance?: number;
   mutualConnections?: number;
   matchReason?: string;
+};
+
+// New schema types
+export type Unit = typeof units.$inferSelect;
+export type InsertUnit = z.infer<typeof insertUnitSchema>;
+
+export type UnitMember = typeof unitMembers.$inferSelect;
+export type InsertUnitMember = z.infer<typeof insertUnitMemberSchema>;
+
+export type Scene = typeof scenes.$inferSelect;
+export type InsertScene = z.infer<typeof insertSceneSchema>;
+
+export type SceneParticipant = typeof sceneParticipants.$inferSelect;
+export type InsertSceneParticipant = z.infer<typeof insertSceneParticipantSchema>;
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
+// Complex types
+export type UnitWithDetails = Unit & {
+  creator: User;
+  members: (UnitMember & { user: User })[];
+  memberCount: number;
+};
+
+export type SceneWithDetails = Scene & {
+  creator: User;
+  activity?: Activity;
+  unit?: Unit;
+  participants: (SceneParticipant & { user: User })[];
+  participantCount: number;
 };

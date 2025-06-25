@@ -140,6 +140,8 @@ Changelog:
 - June 25, 2025. Added PostgreSQL database with Drizzle ORM
 - June 25, 2025. Enhanced matching algorithm with non-negotiable activity and availability compatibility
 - June 25, 2025. Added database seeding with realistic user profiles and overlapping schedules
+- June 25, 2025. Implemented Units (recurring groups) and Scenes (activity events) with participant visibility
+- June 25, 2025. Added analytics logging for user actions and UI feedback for empty states
 ```
 
 ## User Preferences

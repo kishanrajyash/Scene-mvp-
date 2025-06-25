@@ -45,6 +45,25 @@ export interface IStorage {
   getMatchesForUser(userId: number): Promise<MatchWithDetails[]>;
   updateMatchStatus(matchId: number, status: string): Promise<Match | undefined>;
   getAllUsers(): Promise<User[]>;
+
+  // Unit operations
+  createUnit(unit: InsertUnit): Promise<Unit>;
+  getUserUnits(userId: number): Promise<UnitWithDetails[]>;
+  getUnitById(unitId: number): Promise<UnitWithDetails | undefined>;
+  addUnitMember(unitMember: InsertUnitMember): Promise<UnitMember>;
+  removeUnitMember(unitId: number, userId: number): Promise<boolean>;
+
+  // Scene operations
+  createScene(scene: InsertScene): Promise<Scene>;
+  getActiveScenes(): Promise<SceneWithDetails[]>;
+  getSceneById(sceneId: number): Promise<SceneWithDetails | undefined>;
+  joinScene(sceneParticipant: InsertSceneParticipant): Promise<SceneParticipant>;
+  leaveScene(sceneId: number, userId: number): Promise<boolean>;
+  getUserScenes(userId: number): Promise<SceneWithDetails[]>;
+
+  // Analytics operations
+  logEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
+  getAnalytics(userId?: number): Promise<AnalyticsEvent[]>;
 }
 
 export class MemStorage implements IStorage {

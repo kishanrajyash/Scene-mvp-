@@ -15,6 +15,8 @@ export default function Header({ user }: HeaderProps) {
     { name: "Dashboard", href: "/", active: location === "/" },
     { name: "My Activities", href: "/activities", active: location === "/activities" },
     { name: "Matches", href: "/matches", active: location === "/matches" },
+    { name: "My Units", href: "/units", active: location === "/units" },
+    { name: "Scenes", href: "/scenes", active: location === "/scenes" },
     { name: "Profile", href: "/profile", active: location === "/profile" },
   ];
 
