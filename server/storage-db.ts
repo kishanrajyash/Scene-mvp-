@@ -11,7 +11,7 @@ import {
   type UserWithDetails, type MatchWithDetails, type UnitWithDetails, type SceneWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, exists } from "drizzle-orm";
 import type { IStorage } from "./storage";
 
 export class DatabaseStorage implements IStorage {
@@ -347,38 +347,57 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserUnits(userId: number): Promise<UnitWithDetails[]> {
-    const userUnits = await db
-      .select({
-        unit: units,
-        creator: users,
-        member: unitMembers,
-        memberUser: users
-      })
-      .from(units)
-      .innerJoin(users, eq(units.createdBy, users.id))
-      .innerJoin(unitMembers, eq(unitMembers.unitId, units.id))
-      .innerJoin(users, eq(unitMembers.userId, users.id))
-      .where(eq(unitMembers.userId, userId));
+    try {
+      console.log('Getting units for user:', userId);
+      // Get units where user is creator
+      const userUnits = await db
+        .select()
+        .from(units)
+        .where(eq(units.createdBy, userId));
 
-    // Group by unit
-    const unitsMap = new Map<number, UnitWithDetails>();
-    
-    userUnits.forEach(({ unit, creator, member, memberUser }) => {
-      if (!unitsMap.has(unit.id)) {
-        unitsMap.set(unit.id, {
+      console.log('Found units:', userUnits);
+
+      if (userUnits.length === 0) {
+        return [];
+      }
+
+      const result: UnitWithDetails[] = [];
+
+      for (const unit of userUnits) {
+        // Get creator info
+        const creator = await this.getUser(unit.createdBy);
+        if (!creator) continue;
+
+        // Get all members for this unit
+        const members = await db
+          .select()
+          .from(unitMembers)
+          .where(eq(unitMembers.unitId, unit.id));
+
+        const membersWithUsers = [];
+        for (const member of members) {
+          const memberUser = await this.getUser(member.userId);
+          if (memberUser) {
+            membersWithUsers.push({
+              ...member,
+              user: memberUser
+            });
+          }
+        }
+
+        result.push({
           ...unit,
           creator,
-          members: [],
-          memberCount: 0
+          members: membersWithUsers,
+          memberCount: membersWithUsers.length
         });
       }
-      
-      const unitDetails = unitsMap.get(unit.id)!;
-      unitDetails.members.push({ ...member, user: memberUser });
-      unitDetails.memberCount = unitDetails.members.length;
-    });
 
-    return Array.from(unitsMap.values());
+      return result;
+    } catch (error) {
+      console.error('Error fetching user units:', error);
+      return [];
+    }
   }
 
   async getUnitById(unitId: number): Promise<UnitWithDetails | undefined> {

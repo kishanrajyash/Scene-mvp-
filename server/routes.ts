@@ -354,6 +354,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Unit routes
+  app.get("/api/units/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      console.log('Fetching units for user:', userId);
+      const units = await storage.getUserUnits(userId);
+      console.log('Found units:', units.length);
+      res.json(units);
+    } catch (error: any) {
+      console.error('Error in /api/units/user/:userId:', error);
+      res.status(500).json({ error: "Failed to fetch units", details: error?.message || 'Unknown error' });
+    }
+  });
+
+  app.post("/api/units", async (req, res) => {
+    try {
+      const result = insertUnitSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Invalid unit data", details: result.error.issues });
+      }
+      
+      const unit = await storage.createUnit(result.data);
+      
+      // Log analytics event
+      await storage.logEvent({
+        userId: result.data.createdBy,
+        eventType: "unit_created",
+        eventData: { unitId: unit.id, unitName: unit.name }
+      });
+      
+      res.status(201).json(unit);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create unit" });
+    }
+  });
+
+  app.get("/api/units/:unitId", async (req, res) => {
+    try {
+      const unitId = parseInt(req.params.unitId);
+      const unit = await storage.getUnitById(unitId);
+      if (!unit) {
+        return res.status(404).json({ error: "Unit not found" });
+      }
+      res.json(unit);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch unit" });
+    }
+  });
+
+  app.post("/api/units/:unitId/join", async (req, res) => {
+    try {
+      const unitId = parseInt(req.params.unitId);
+      const { userId } = req.body;
+      
+      const member = await storage.addUnitMember({
+        unitId,
+        userId
+      });
+      
+      // Log analytics event
+      await storage.logEvent({
+        userId,
+        eventType: "unit_joined",
+        eventData: { unitId }
+      });
+      
+      res.status(201).json(member);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to join unit" });
+    }
+  });
+
   // Scene routes
   app.post("/api/scenes", async (req, res) => {
     try {

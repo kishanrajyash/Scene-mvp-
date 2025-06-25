@@ -142,6 +142,9 @@ Changelog:
 - June 25, 2025. Added database seeding with realistic user profiles and overlapping schedules
 - June 25, 2025. Implemented Units (recurring groups) and Scenes (activity events) with participant visibility
 - June 25, 2025. Added analytics logging for user actions and UI feedback for empty states
+- June 25, 2025. Fixed Units functionality with proper API routes, form validation, and TypeScript types
+- June 25, 2025. Removed personality results from dashboard home screen per user feedback
+- June 25, 2025. Enhanced card layouts with improved spacing and responsive design
 ```
 
 ## User Preferences

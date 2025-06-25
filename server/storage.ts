@@ -1,10 +1,14 @@
 import { 
   users, activities, availability, resources, personalityQuestions, userAnswers, matches,
+  units, unitMembers, scenes, sceneParticipants, analyticsEvents,
   type User, type InsertUser, type Activity, type InsertActivity,
   type Availability, type InsertAvailability, type Resource, type InsertResource,
   type PersonalityQuestion, type InsertPersonalityQuestion,
   type UserAnswer, type InsertUserAnswer, type Match, type InsertMatch,
-  type UserWithDetails, type MatchWithDetails
+  type UserWithDetails, type MatchWithDetails,
+  type Unit, type InsertUnit, type UnitMember, type InsertUnitMember, type UnitWithDetails,
+  type Scene, type InsertScene, type SceneParticipant, type InsertSceneParticipant, type SceneWithDetails,
+  type AnalyticsEvent, type InsertAnalyticsEvent
 } from "@shared/schema";
 
 export interface IStorage {
@@ -74,6 +78,11 @@ export class MemStorage implements IStorage {
   private questions: Map<number, PersonalityQuestion> = new Map();
   private userAnswers: Map<number, UserAnswer[]> = new Map();
   private matches: Map<number, Match> = new Map();
+  private units: Map<number, Unit> = new Map();
+  private unitMembers: Map<number, UnitMember> = new Map();
+  private scenes: Map<number, Scene> = new Map();
+  private sceneParticipants: Map<number, SceneParticipant> = new Map();
+  private analyticsEvents: Map<number, AnalyticsEvent> = new Map();
   
   private currentUserId = 1;
   private currentActivityId = 1;
@@ -82,6 +91,11 @@ export class MemStorage implements IStorage {
   private currentQuestionId = 1;
   private currentAnswerId = 1;
   private currentMatchId = 1;
+  private currentUnitId = 1;
+  private currentUnitMemberId = 1;
+  private currentSceneId = 1;
+  private currentSceneParticipantId = 1;
+  private currentAnalyticsEventId = 1;
 
   constructor() {
     this.initializeData();
@@ -623,10 +637,178 @@ export class MemStorage implements IStorage {
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
+
+  // Unit operations
+  async createUnit(insertUnit: InsertUnit): Promise<Unit> {
+    const unit: Unit = {
+      id: this.currentUnitId++,
+      ...insertUnit,
+      createdAt: new Date(),
+    };
+    this.units.set(unit.id, unit);
+    
+    // Add creator as first member
+    const member: UnitMember = {
+      id: this.currentUnitMemberId++,
+      unitId: unit.id,
+      userId: unit.createdBy,
+      joinedAt: new Date(),
+      role: "creator"
+    };
+    this.unitMembers.set(member.id, member);
+    
+    return unit;
+  }
+
+  async getUserUnits(userId: number): Promise<UnitWithDetails[]> {
+    const userUnits = Array.from(this.units.values()).filter(
+      unit => unit.createdBy === userId || 
+      Array.from(this.unitMembers.values()).some(member => member.unitId === unit.id && member.userId === userId)
+    );
+
+    const result: UnitWithDetails[] = [];
+    
+    for (const unit of userUnits) {
+      const creator = await this.getUser(unit.createdBy);
+      if (!creator) continue;
+
+      const members = Array.from(this.unitMembers.values())
+        .filter(member => member.unitId === unit.id);
+      
+      const membersWithUsers = [];
+      for (const member of members) {
+        const user = await this.getUser(member.userId);
+        if (user) {
+          membersWithUsers.push({ ...member, user });
+        }
+      }
+
+      result.push({
+        ...unit,
+        creator,
+        members: membersWithUsers,
+        memberCount: membersWithUsers.length
+      });
+    }
+
+    return result;
+  }
+
+  async getUnitById(unitId: number): Promise<UnitWithDetails | undefined> {
+    const unit = this.units.get(unitId);
+    if (!unit) return undefined;
+
+    const creator = await this.getUser(unit.createdBy);
+    if (!creator) return undefined;
+
+    const members = Array.from(this.unitMembers.values())
+      .filter(member => member.unitId === unit.id);
+    
+    const membersWithUsers = [];
+    for (const member of members) {
+      const user = await this.getUser(member.userId);
+      if (user) {
+        membersWithUsers.push({ ...member, user });
+      }
+    }
+
+    return {
+      ...unit,
+      creator,
+      members: membersWithUsers,
+      memberCount: membersWithUsers.length
+    };
+  }
+
+  async addUnitMember(insertUnitMember: InsertUnitMember): Promise<UnitMember> {
+    const member: UnitMember = {
+      id: this.currentUnitMemberId++,
+      ...insertUnitMember,
+      joinedAt: new Date(),
+      role: "member"
+    };
+    this.unitMembers.set(member.id, member);
+    return member;
+  }
+
+  async removeUnitMember(unitId: number, userId: number): Promise<boolean> {
+    const member = Array.from(this.unitMembers.values())
+      .find(m => m.unitId === unitId && m.userId === userId);
+    
+    if (member) {
+      this.unitMembers.delete(member.id);
+      return true;
+    }
+    return false;
+  }
+
+  // Scene operations
+  async createScene(insertScene: InsertScene): Promise<Scene> {
+    const scene: Scene = {
+      id: this.currentSceneId++,
+      ...insertScene,
+      createdAt: new Date(),
+    };
+    this.scenes.set(scene.id, scene);
+    return scene;
+  }
+
+  async getActiveScenes(): Promise<SceneWithDetails[]> {
+    return [];
+  }
+
+  async getSceneById(sceneId: number): Promise<SceneWithDetails | undefined> {
+    return undefined;
+  }
+
+  async joinScene(insertSceneParticipant: InsertSceneParticipant): Promise<SceneParticipant> {
+    const participant: SceneParticipant = {
+      id: this.currentSceneParticipantId++,
+      ...insertSceneParticipant,
+      joinedAt: new Date(),
+      status: "joined"
+    };
+    this.sceneParticipants.set(participant.id, participant);
+    return participant;
+  }
+
+  async leaveScene(sceneId: number, userId: number): Promise<boolean> {
+    const participant = Array.from(this.sceneParticipants.values())
+      .find(p => p.sceneId === sceneId && p.userId === userId);
+    
+    if (participant) {
+      this.sceneParticipants.delete(participant.id);
+      return true;
+    }
+    return false;
+  }
+
+  async getUserScenes(userId: number): Promise<SceneWithDetails[]> {
+    return [];
+  }
+
+  // Analytics operations
+  async logEvent(insertAnalyticsEvent: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const event: AnalyticsEvent = {
+      id: this.currentAnalyticsEventId++,
+      ...insertAnalyticsEvent,
+      createdAt: new Date(),
+    };
+    this.analyticsEvents.set(event.id, event);
+    return event;
+  }
+
+  async getAnalytics(userId?: number): Promise<AnalyticsEvent[]> {
+    const events = Array.from(this.analyticsEvents.values());
+    if (userId) {
+      return events.filter(event => event.userId === userId);
+    }
+    return events;
+  }
 }
 
 // Import database storage
 import { DatabaseStorage } from "./storage-db";
 
 // Use database storage instead of memory storage
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();

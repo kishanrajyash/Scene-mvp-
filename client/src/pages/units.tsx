@@ -48,8 +48,8 @@ export default function Units() {
     defaultValues: {
       name: "",
       description: "",
-      creatorId: currentUserId,
-      category: "",
+      createdBy: currentUserId,
+      activityCategory: "",
       preferredDays: [] as string[],
       preferredTimeSlots: [] as string[],
       maxMembers: 6,
@@ -83,6 +83,7 @@ export default function Units() {
       preferredDays: Array.isArray(data.preferredDays) ? data.preferredDays.join(",") : data.preferredDays || "",
       preferredTimeSlots: Array.isArray(data.preferredTimeSlots) ? data.preferredTimeSlots.join(",") : data.preferredTimeSlots || "",
     };
+    console.log('Submitting unit data:', processedData);
     createUnitMutation.mutate(processedData);
   };
 
@@ -156,7 +157,7 @@ export default function Units() {
 
                 <FormField
                   control={form.control}
-                  name="category"
+                  name="activityCategory"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Activity Category</FormLabel>
@@ -331,26 +332,21 @@ export default function Units() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                     <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span className="capitalize truncate">{(unit as any).category || (unit as any).activityCategory}</span>
+                    <span className="capitalize truncate">{unit.activityCategory || 'General'}</span>
                   </div>
                   
-                  {(unit as any).preferredDays && (
+                  {unit.preferredDays && (
                     <div className="flex items-start gap-2 text-sm text-gray-600 mb-3">
                       <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
                       <span className="capitalize text-xs leading-relaxed line-clamp-2">
-                        {typeof (unit as any).preferredDays === 'string' 
-                          ? (unit as any).preferredDays.split(',').map((d: string) => d.trim()).join(', ')
-                          : Array.isArray((unit as any).preferredDays) 
-                            ? (unit as any).preferredDays.join(', ')
-                            : (unit as any).preferredDays
-                        }
+                        {unit.preferredDays}
                       </span>
                     </div>
                   )}
                   
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className="text-xs text-muted-foreground">
-                      {unit.memberCount || 0} / {(unit as any).maxMembers || 6} members
+                      {unit.memberCount || 0} / {unit.maxMembers || 6} members
                     </span>
                     <Button 
                       variant="outline" 
@@ -391,35 +387,25 @@ export default function Units() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold mb-2">Category</h3>
-                  <p className="text-gray-600 capitalize">{(selectedUnit as any).category || (selectedUnit as any).activityCategory}</p>
+                  <p className="text-gray-600 capitalize">{selectedUnit.activityCategory || 'General'}</p>
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Members</h3>
-                  <p className="text-gray-600">{selectedUnit.memberCount || 0} / {(selectedUnit as any).maxMembers || 6}</p>
+                  <p className="text-gray-600">{selectedUnit.memberCount || 0} / {selectedUnit.maxMembers || 6}</p>
                 </div>
-                {(selectedUnit as any).preferredDays && (
+                {selectedUnit.preferredDays && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Days</h3>
                     <p className="text-gray-600 capitalize">
-                      {typeof (selectedUnit as any).preferredDays === 'string' 
-                        ? (selectedUnit as any).preferredDays.split(',').map((d: string) => d.trim()).join(', ')
-                        : Array.isArray((selectedUnit as any).preferredDays) 
-                          ? (selectedUnit as any).preferredDays.join(', ')
-                          : (selectedUnit as any).preferredDays
-                      }
+                      {selectedUnit.preferredDays}
                     </p>
                   </div>
                 )}
-                {(selectedUnit as any).preferredTimeSlots && (
+                {selectedUnit.preferredTimeSlots && (
                   <div>
                     <h3 className="font-semibold mb-2">Preferred Times</h3>
                     <p className="text-gray-600 capitalize">
-                      {typeof (selectedUnit as any).preferredTimeSlots === 'string' 
-                        ? (selectedUnit as any).preferredTimeSlots.split(',').map((t: string) => t.trim()).join(', ')
-                        : Array.isArray((selectedUnit as any).preferredTimeSlots) 
-                          ? (selectedUnit as any).preferredTimeSlots.join(', ')
-                          : (selectedUnit as any).preferredTimeSlots
-                      }
+                      {selectedUnit.preferredTimeSlots}
                     </p>
                   </div>
                 )}
@@ -442,7 +428,7 @@ export default function Units() {
                             </p>
                           </div>
                         </div>
-                        {(selectedUnit as any).creatorId === member.userId && (
+                        {selectedUnit.createdBy === member.userId && (
                           <span className="text-xs bg-primary text-white px-2 py-1 rounded">Creator</span>
                         )}
                       </div>
@@ -457,12 +443,12 @@ export default function Units() {
                 <Button variant="outline" onClick={() => setSelectedUnit(null)} className="flex-1">
                   Close
                 </Button>
-                {(selectedUnit as any).creatorId !== currentUserId && (
+                {selectedUnit.createdBy !== currentUserId && (
                   <Button className="flex-1">
                     Join Unit
                   </Button>
                 )}
-                {(selectedUnit as any).creatorId === currentUserId && (
+                {selectedUnit.createdBy === currentUserId && (
                   <Button variant="outline" className="flex-1">
                     Manage Unit
                   </Button>

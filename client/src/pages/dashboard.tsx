@@ -24,6 +24,10 @@ export default function Dashboard() {
     queryKey: [`/api/matches/${currentUserId}`],
   });
 
+  const { data: units = [], isLoading: unitsLoading } = useQuery({
+    queryKey: [`/api/units/user/${currentUserId}`],
+  });
+
   if (userLoading) {
     return (
       <div className="min-h-screen bg-gray-50">

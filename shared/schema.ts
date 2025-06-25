@@ -89,8 +89,9 @@ export const units = pgTable("units", {
   description: text("description"),
   createdBy: integer("created_by").notNull().references(() => users.id),
   activityCategory: text("activity_category").notNull(),
-  preferredDays: text("preferred_days").array(),
-  preferredTimes: text("preferred_times").array(),
+  preferredDays: text("preferred_days"),
+  preferredTimeSlots: text("preferred_time_slots"),
+  maxMembers: integer("max_members").default(6),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -373,6 +374,8 @@ export type UnitWithDetails = Unit & {
   creator: User;
   members: (UnitMember & { user: User })[];
   memberCount: number;
+  category?: string;
+  creatorId?: number;
 };
 
 export type SceneWithDetails = Scene & {
