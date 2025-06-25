@@ -16,18 +16,54 @@ import type { UserWithDetails, MatchWithDetails } from "@shared/schema";
 export default function Dashboard() {
   const currentUserId = 1; // In a real app, this would come from auth context
 
-  const { data: user, isLoading: userLoading } = useQuery<UserWithDetails>({
-    queryKey: [`/api/user/${currentUserId}`],
-  });
+  
+// 🧪 Mock fallback data
+const mockUser: UserWithDetails = {
+  id: 1,
+  name: "Test User",
+  quizCompleted: true,
+  personalityType: "ENFP",
+  personalityDescription: "Creative explorer",
+  personalityTraits: {
+    extroversion: 70,
+    adventure: 80,
+    planning: 60,
+    creativity: 90,
+    empathy: 75,
+  },
+  availability: [
+    { dayOfWeek: 'monday', timeSlot: 'morning', isAvailable: true },
+    { dayOfWeek: 'wednesday', timeSlot: 'evening', isAvailable: true },
+  ],
+  resources: { hasVehicle: true, budgetMin: 10, budgetMax: 50 },
+  activities: [
+    { id: 101, name: "Evening Walk", description: "Chill walk in park", category: "Outdoor", skillLevel: "all", maxParticipants: 5 },
+  ],
+};
 
-  const { data: matches, isLoading: matchesLoading } = useQuery<MatchWithDetails[]>({
-    queryKey: [`/api/matches/${currentUserId}`],
-  });
+const mockMatches: MatchWithDetails[] = [
+  {
+    id: 1,
+    matchedUser: mockUser,
+    activity: mockUser.activities[0],
+    compatibilityScore: 85,
+    status: "pending",
+    matchedAt: new Date().toISOString(),
+  },
+];
 
-  const { data: units = [], isLoading: unitsLoading } = useQuery({
-    queryKey: [`/api/units/user/${currentUserId}`],
-  });
+// 👇 Inject fallback if data is missing
+const { data: user = mockUser, isLoading: userLoading } = useQuery<UserWithDetails>({
+  queryKey: [`/api/user/${currentUserId}`],
+});
 
+const { data: matches = mockMatches, isLoading: matchesLoading } = useQuery<MatchWithDetails[]>({
+  queryKey: [`/api/matches/${currentUserId}`],
+});
+
+const { data: units = [], isLoading: unitsLoading } = useQuery({
+  queryKey: [`/api/units/user/${currentUserId}`],
+});
   if (userLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
