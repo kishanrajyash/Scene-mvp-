@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import PersonalityQuiz from "@/components/personality-quiz";
 import type { UserWithDetails, Resource } from "@shared/schema";
 
 const profileSchema = z.object({
@@ -367,12 +368,14 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="personality">
-            <Card>
-              <CardHeader>
-                <CardTitle>Personality Assessment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {user.quizCompleted ? (
+            {!user.quizCompleted ? (
+              <PersonalityQuiz userId={currentUserId} />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personality Assessment</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-6">
                     <div className="text-center">
                       <div className="w-24 h-24 bg-gradient-to-br from-primary to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -402,23 +405,25 @@ export default function Profile() {
                     )}
                     
                     <div className="text-center pt-4">
-                      <Button variant="outline">
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          // Reset quiz completion status to allow retaking
+                          queryClient.setQueryData([`/api/user/${currentUserId}`], (oldData: UserWithDetails | undefined) => {
+                            if (oldData) {
+                              return { ...oldData, quizCompleted: false };
+                            }
+                            return oldData;
+                          });
+                        }}
+                      >
                         Retake Personality Quiz
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600 mb-6">
-                      Complete our personality assessment to get better matched with compatible activity partners.
-                    </p>
-                    <Button className="bg-primary text-white hover:bg-primary/90">
-                      Start Personality Quiz
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>

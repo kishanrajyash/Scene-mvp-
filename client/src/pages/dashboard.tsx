@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/header";
 import PersonalityQuiz from "@/components/personality-quiz";
+import { queryClient } from "@/lib/queryClient";
 import MatchCard from "@/components/match-card";
 import ActivityCard from "@/components/activity-card";
 import { Button } from "@/components/ui/button";
@@ -107,7 +108,20 @@ export default function Dashboard() {
             <Card className="animate-fade-in">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg">Your Personality</CardTitle>
-                <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary hover:text-primary/80"
+                  onClick={() => {
+                    // Reset quiz completion status to allow retaking
+                    queryClient.setQueryData([`/api/user/${currentUserId}`], (oldData: UserWithDetails | undefined) => {
+                      if (oldData) {
+                        return { ...oldData, quizCompleted: false };
+                      }
+                      return oldData;
+                    });
+                  }}
+                >
                   Retake Quiz
                 </Button>
               </CardHeader>
@@ -241,6 +255,34 @@ export default function Dashboard() {
 
             {/* Personality Quiz Component */}
             {!user.quizCompleted && <PersonalityQuiz userId={user.id} />}
+            
+            {/* Demo Quiz Button for Testing */}
+            {user.quizCompleted && (
+              <Card className="animate-fade-in border-dashed border-2 border-purple-200 bg-purple-50">
+                <CardHeader>
+                  <CardTitle className="text-lg text-purple-900">Try the Personality Quiz</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-purple-700 mb-4">
+                    Experience our interactive personality assessment that helps create better matches.
+                  </p>
+                  <Button 
+                    onClick={() => {
+                      // Reset quiz completion status for demo
+                      queryClient.setQueryData([`/api/user/${currentUserId}`], (oldData: UserWithDetails | undefined) => {
+                        if (oldData) {
+                          return { ...oldData, quizCompleted: false };
+                        }
+                        return oldData;
+                      });
+                    }}
+                    className="bg-purple-600 text-white hover:bg-purple-700"
+                  >
+                    Demo Personality Quiz
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* My Activities */}
             <Card className="animate-fade-in">
