@@ -53,16 +53,70 @@ const mockMatches: MatchWithDetails[] = [
 ];
 
 // 👇 Inject fallback if data is missing
-const { data: user = mockUser, isLoading: userLoading } = useQuery<UserWithDetails>({
+const { data: user, isLoading: userLoading } = useQuery<UserWithDetails>({
   queryKey: [`/api/user/${currentUserId}`],
+  queryFn: async () => ({
+    id: 1,
+    name: "Aarav Sharma",
+    email: "aarav@example.com",
+    personalityType: "Connector",
+    personalityDescription: "You love bringing people together",
+    personalityTraits: {
+      extroversion: 80,
+      adventure: 60,
+      planning: 40,
+      creativity: 70,
+      empathy: 90,
+    },
+    quizCompleted: true,
+    availability: [
+      { dayOfWeek: "monday", timeSlot: "evening", isAvailable: true },
+      { dayOfWeek: "wednesday", timeSlot: "morning", isAvailable: true },
+    ],
+    resources: {
+      hasVehicle: true,
+      budgetMin: 100,
+      budgetMax: 500,
+      canHost: true,
+      location: "Delhi",
+    },
+    activities: [
+      { id: 1, name: "Basketball", description: "Pickup game", category: "sports", skillLevel: "intermediate" },
+      { id: 2, name: "Coffee Chat", description: "Chat over coffee", category: "social", skillLevel: "all" },
+    ],
+  }),
 });
 
-const { data: matches = mockMatches, isLoading: matchesLoading } = useQuery<MatchWithDetails[]>({
+const { data: matches, isLoading: matchesLoading } = useQuery<MatchWithDetails[]>({
   queryKey: [`/api/matches/${currentUserId}`],
+  queryFn: async () => [
+    {
+      id: 101,
+      userId: 1,
+      matchedUserId: 2,
+      compatibilityScore: 87,
+      status: "connected",
+      matchedAt: new Date().toISOString(),
+      activity: {
+        id: 1,
+        name: "Basketball",
+        description: "Pickup game",
+        category: "sports",
+        skillLevel: "intermediate",
+      },
+      matchedUser: {
+        id: 2,
+        name: "Riya Kapoor",
+        email: "riya@example.com",
+        profilePicture: "",
+      },
+    },
+  ],
 });
 
 const { data: units = [], isLoading: unitsLoading } = useQuery({
   queryKey: [`/api/units/user/${currentUserId}`],
+  queryFn: async () => [],
 });
   if (userLoading) {
     return (
