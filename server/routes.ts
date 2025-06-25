@@ -215,47 +215,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.body;
       
-      // Get current user and all other users
-      const currentUser = await storage.getUserWithDetails(userId);
-      if (!currentUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const allUsers = await storage.getAllUsers();
-      const otherUsers = allUsers.filter(u => u.id !== userId && u.quizCompleted);
-      const allActivities = await storage.getAllActiveActivities();
-
-      // Generate matches based on personality compatibility
-      const matches: Match[] = [];
+      // Use strict matching with non-negotiable activity and availability compatibility
+      const strictMatches = await (storage as any).findStrictMatches?.(userId);
       
-      for (const otherUser of otherUsers) {
-        if (!otherUser.personalityTraits || !currentUser.personalityTraits) continue;
-        
-        // Calculate compatibility score
-        const compatibility = calculateCompatibility(
-          currentUser.personalityTraits,
-          otherUser.personalityTraits
-        );
+      if (strictMatches) {
+        // Save the matches to database
+        const savedMatches: Match[] = [];
+        for (const match of strictMatches) {
+          const savedMatch = await storage.createMatch({
+            userId: match.userId,
+            matchedUserId: match.matchedUserId,
+            activityId: match.activityId,
+            compatibilityScore: match.compatibilityScore,
+            status: "pending"
+          });
+          savedMatches.push(savedMatch);
+        }
+        res.json(savedMatches);
+      } else {
+        // Fallback to original matching if strict matching not available
+        const currentUser = await storage.getUserWithDetails(userId);
+        if (!currentUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
 
-        // Find matching activities
-        const otherUserActivities = await storage.getActivitiesByUser(otherUser.id);
+        const allUsers = await storage.getAllUsers();
+        const otherUsers = allUsers.filter(u => u.id !== userId && u.quizCompleted);
+
+        const matches: Match[] = [];
         
-        for (const activity of otherUserActivities) {
-          if (activity.isActive) {
-            const match = await storage.createMatch({
-              userId,
-              matchedUserId: otherUser.id,
-              activityId: activity.id,
-              compatibilityScore: compatibility,
-              status: "pending"
-            });
-            matches.push(match);
+        for (const otherUser of otherUsers) {
+          if (!otherUser.personalityTraits || !currentUser.personalityTraits) continue;
+          
+          const compatibility = calculateCompatibility(
+            currentUser.personalityTraits,
+            otherUser.personalityTraits
+          );
+
+          const otherUserActivities = await storage.getActivitiesByUser(otherUser.id);
+          
+          for (const activity of otherUserActivities) {
+            if (activity.isActive) {
+              const match = await storage.createMatch({
+                userId,
+                matchedUserId: otherUser.id,
+                activityId: activity.id,
+                compatibilityScore: compatibility,
+                status: "pending"
+              });
+              matches.push(match);
+            }
           }
         }
-      }
 
-      res.json(matches);
+        res.json(matches);
+      }
     } catch (error) {
+      console.error("Error generating matches:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

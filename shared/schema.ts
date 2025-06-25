@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -81,6 +82,70 @@ export const matches = pgTable("matches", {
   status: text("status").default("pending"), // pending, connected, skipped
   matchedAt: timestamp("matched_at").defaultNow(),
 });
+
+// Define relations
+export const usersRelations = relations(users, ({ many, one }) => ({
+  activities: many(activities),
+  availability: many(availability),
+  resources: one(resources),
+  userAnswers: many(userAnswers),
+  matches: many(matches, { relationName: "userMatches" }),
+  matchedWith: many(matches, { relationName: "matchedUserMatches" })
+}));
+
+export const activitiesRelations = relations(activities, ({ one, many }) => ({
+  user: one(users, {
+    fields: [activities.userId],
+    references: [users.id]
+  }),
+  matches: many(matches)
+}));
+
+export const availabilityRelations = relations(availability, ({ one }) => ({
+  user: one(users, {
+    fields: [availability.userId],
+    references: [users.id]
+  })
+}));
+
+export const resourcesRelations = relations(resources, ({ one }) => ({
+  user: one(users, {
+    fields: [resources.userId],
+    references: [users.id]
+  })
+}));
+
+export const personalityQuestionsRelations = relations(personalityQuestions, ({ many }) => ({
+  userAnswers: many(userAnswers)
+}));
+
+export const userAnswersRelations = relations(userAnswers, ({ one }) => ({
+  user: one(users, {
+    fields: [userAnswers.userId],
+    references: [users.id]
+  }),
+  question: one(personalityQuestions, {
+    fields: [userAnswers.questionId],
+    references: [personalityQuestions.id]
+  })
+}));
+
+export const matchesRelations = relations(matches, ({ one }) => ({
+  user: one(users, {
+    fields: [matches.userId],
+    references: [users.id],
+    relationName: "userMatches"
+  }),
+  matchedUser: one(users, {
+    fields: [matches.matchedUserId],
+    references: [users.id],
+    relationName: "matchedUserMatches"
+  }),
+  activity: one(activities, {
+    fields: [matches.activityId],
+    references: [activities.id]
+  })
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({

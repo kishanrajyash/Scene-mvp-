@@ -6,6 +6,20 @@ ActivityMatch is a full-stack web application designed to connect people based o
 
 ## System Architecture
 
+### Database Architecture
+- **Database**: PostgreSQL with Neon Database (serverless)
+- **ORM**: Drizzle ORM with TypeScript schema definitions
+- **Relations**: Fully modeled relationships between users, activities, availability, resources, and matches
+- **Migrations**: Schema managed via `npm run db:push`
+- **Seeding**: Automatic development data seeding with realistic user profiles and overlapping availability
+
+### Matching Algorithm (Enhanced)
+- **Non-Negotiable Requirements**: 
+  - Activity compatibility: Users must have matching activity categories or skill levels
+  - Time availability overlap: Users must have at least one overlapping time slot
+- **Weighted Scoring**: Personality compatibility adds to base score but doesn't block matches
+- **Strict Filtering**: Only users meeting both activity and availability requirements are considered
+
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Routing**: Wouter for client-side routing
@@ -122,7 +136,10 @@ ActivityMatch is a full-stack web application designed to connect people based o
 
 ```
 Changelog:
-- June 25, 2025. Initial setup
+- June 25, 2025. Initial setup with in-memory storage
+- June 25, 2025. Added PostgreSQL database with Drizzle ORM
+- June 25, 2025. Enhanced matching algorithm with non-negotiable activity and availability compatibility
+- June 25, 2025. Added database seeding with realistic user profiles and overlapping schedules
 ```
 
 ## User Preferences
