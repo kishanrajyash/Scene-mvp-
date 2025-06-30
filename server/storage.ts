@@ -1,6 +1,6 @@
 import { 
   users, activities, availability, resources, personalityQuestions, userAnswers, matches,
-  units, unitMembers, scenes, sceneParticipants, analyticsEvents,
+  units, unitMembers, scenes, sceneParticipants, analyticsEvents, sceneAsks, sceneResponses, userFeedback,
   type User, type InsertUser, type Activity, type InsertActivity,
   type Availability, type InsertAvailability, type Resource, type InsertResource,
   type PersonalityQuestion, type InsertPersonalityQuestion,
@@ -8,7 +8,9 @@ import {
   type UserWithDetails, type MatchWithDetails,
   type Unit, type InsertUnit, type UnitMember, type InsertUnitMember, type UnitWithDetails,
   type Scene, type InsertScene, type SceneParticipant, type InsertSceneParticipant, type SceneWithDetails,
-  type AnalyticsEvent, type InsertAnalyticsEvent
+  type AnalyticsEvent, type InsertAnalyticsEvent,
+  type SceneAsk, type InsertSceneAsk, type SceneResponse, type InsertSceneResponse,
+  type UserFeedback, type InsertUserFeedback, type SceneAskWithDetails
 } from "@shared/schema";
 
 export interface IStorage {
@@ -68,6 +70,16 @@ export interface IStorage {
   // Analytics operations
   logEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
   getAnalytics(userId?: number): Promise<AnalyticsEvent[]>;
+
+  // Scene Ask operations
+  createSceneAsk(sceneAsk: InsertSceneAsk): Promise<SceneAsk>;
+  getSceneAsks(): Promise<SceneAskWithDetails[]>;
+  getSceneAskById(id: number): Promise<SceneAskWithDetails | undefined>;
+  respondToSceneAsk(response: InsertSceneResponse): Promise<SceneResponse>;
+  
+  // User feedback operations
+  addUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback>;
+  updateUserOnboarding(userId: number, data: { currentMood: string; purpose: string; offerNeed: string }): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {

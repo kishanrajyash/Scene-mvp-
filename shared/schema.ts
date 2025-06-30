@@ -19,6 +19,11 @@ export const users = pgTable("users", {
     empathy: number;
   }>(),
   quizCompleted: boolean("quiz_completed").default(false),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  currentMood: text("current_mood"),
+  purpose: text("purpose"),
+  offerNeed: text("offer_need"),
+  helpfulnessScore: integer("helpfulness_score").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -31,6 +36,40 @@ export const activities = pgTable("activities", {
   skillLevel: text("skill_level"), // beginner, intermediate, advanced, all
   maxParticipants: integer("max_participants"),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sceneAsks = pgTable("scene_asks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location").notNull(),
+  mood: text("mood").notNull(),
+  purpose: text("purpose").notNull(),
+  timePreference: text("time_preference").notNull(),
+  isActive: boolean("is_active").default(true),
+  helpCount: integer("help_count").default(0),
+  joinCount: integer("join_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sceneResponses = pgTable("scene_responses", {
+  id: serial("id").primaryKey(),
+  sceneAskId: integer("scene_ask_id").notNull().references(() => sceneAsks.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  responseType: text("response_type").notNull(), // 'join' or 'help'
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userFeedback = pgTable("user_feedback", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  targetUserId: integer("target_user_id").references(() => users.id),
+  feedbackType: text("feedback_type").notNull(), // 'helpful', 'positive', 'negative'
+  emoji: text("emoji").notNull(),
+  context: text("context"), // 'scene_response', 'general_interaction'
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -136,6 +175,38 @@ export const analyticsEvents = pgTable("analytics_events", {
 });
 
 // Define relations
+export const sceneAsksRelations = relations(sceneAsks, ({ one, many }) => ({
+  user: one(users, {
+    fields: [sceneAsks.userId],
+    references: [users.id]
+  }),
+  responses: many(sceneResponses)
+}));
+
+export const sceneResponsesRelations = relations(sceneResponses, ({ one }) => ({
+  sceneAsk: one(sceneAsks, {
+    fields: [sceneResponses.sceneAskId],
+    references: [sceneAsks.id]
+  }),
+  user: one(users, {
+    fields: [sceneResponses.userId],
+    references: [users.id]
+  })
+}));
+
+export const userFeedbackRelations = relations(userFeedback, ({ one }) => ({
+  user: one(users, {
+    fields: [userFeedback.userId],
+    references: [users.id],
+    relationName: "givenFeedback"
+  }),
+  targetUser: one(users, {
+    fields: [userFeedback.targetUserId],
+    references: [users.id],
+    relationName: "receivedFeedback"
+  })
+}));
+
 export const usersRelations = relations(users, ({ many, one }) => ({
   activities: many(activities),
   availability: many(availability),
@@ -147,7 +218,11 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   unitMemberships: many(unitMembers),
   createdScenes: many(scenes),
   sceneParticipations: many(sceneParticipants),
-  analyticsEvents: many(analyticsEvents)
+  analyticsEvents: many(analyticsEvents),
+  sceneAsks: many(sceneAsks),
+  sceneResponses: many(sceneResponses),
+  givenFeedback: many(userFeedback, { relationName: "givenFeedback" }),
+  receivedFeedback: many(userFeedback, { relationName: "receivedFeedback" })
 }));
 
 export const activitiesRelations = relations(activities, ({ one, many }) => ({
@@ -316,6 +391,23 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   createdAt: true,
 });
 
+export const insertSceneAskSchema = createInsertSchema(sceneAsks).omit({
+  id: true,
+  createdAt: true,
+  helpCount: true,
+  joinCount: true,
+});
+
+export const insertSceneResponseSchema = createInsertSchema(sceneResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -384,4 +476,20 @@ export type SceneWithDetails = Scene & {
   unit?: Unit;
   participants: (SceneParticipant & { user: User })[];
   participantCount: number;
+};
+
+// New types for social utility features
+export type SceneAsk = typeof sceneAsks.$inferSelect;
+export type InsertSceneAsk = z.infer<typeof insertSceneAskSchema>;
+
+export type SceneResponse = typeof sceneResponses.$inferSelect;
+export type InsertSceneResponse = z.infer<typeof insertSceneResponseSchema>;
+
+export type UserFeedback = typeof userFeedback.$inferSelect;
+export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
+
+export type SceneAskWithDetails = SceneAsk & {
+  user: User;
+  responses: (SceneResponse & { user: User })[];
+  responseCount: number;
 };

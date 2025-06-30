@@ -5,8 +5,9 @@ import {
   insertUserSchema, insertActivitySchema, insertAvailabilitySchema, 
   insertResourceSchema, insertUserAnswerSchema, insertMatchSchema,
   insertUnitSchema, insertSceneSchema, insertSceneParticipantSchema, insertAnalyticsEventSchema,
+  insertSceneAskSchema, insertSceneResponseSchema, insertUserFeedbackSchema,
   type User, type Activity, type Match
-} from "@shared/schema";
+} from "../shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -538,6 +539,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(events);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Scene Ask routes
+  app.get("/api/scene-asks", async (req, res) => {
+    try {
+      const sceneAsks = await storage.getSceneAsks();
+      res.json(sceneAsks);
+    } catch (error) {
+      console.error("Error fetching scene asks:", error);
+      res.status(500).json({ message: "Failed to fetch scene asks" });
+    }
+  });
+
+  app.post("/api/scene-asks", async (req, res) => {
+    try {
+      const result = insertSceneAskSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Invalid scene ask data", details: result.error.issues });
+      }
+
+      // Add user ID from session (mock for now)
+      const sceneAskData = { ...result.data, userId: 1 };
+      const sceneAsk = await storage.createSceneAsk(sceneAskData);
+      
+      res.status(201).json(sceneAsk);
+    } catch (error) {
+      console.error("Error creating scene ask:", error);
+      res.status(500).json({ message: "Failed to create scene ask" });
+    }
+  });
+
+  app.post("/api/scene-asks/:id/respond", async (req, res) => {
+    try {
+      const sceneAskId = parseInt(req.params.id);
+      const { responseType, message } = req.body;
+
+      const response = await storage.respondToSceneAsk({
+        sceneAskId,
+        userId: 1, // Mock user ID
+        responseType,
+        message
+      });
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error responding to scene ask:", error);
+      res.status(500).json({ message: "Failed to respond to scene ask" });
+    }
+  });
+
+  // User onboarding route
+  app.patch("/api/users/:id/onboarding", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { currentMood, purpose, offerNeed } = req.body;
+
+      const user = await storage.updateUserOnboarding(userId, {
+        currentMood,
+        purpose,
+        offerNeed
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user onboarding:", error);
+      res.status(500).json({ message: "Failed to update onboarding" });
     }
   });
 

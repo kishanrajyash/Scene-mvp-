@@ -1,6 +1,6 @@
 import { 
   users, activities, availability, resources, personalityQuestions, userAnswers, matches,
-  units, unitMembers, scenes, sceneParticipants, analyticsEvents,
+  units, unitMembers, scenes, sceneParticipants, analyticsEvents, sceneAsks, sceneResponses, userFeedback,
   type User, type InsertUser, type Activity, type InsertActivity,
   type Availability, type InsertAvailability, type Resource, type InsertResource,
   type PersonalityQuestion, type InsertPersonalityQuestion,
@@ -8,6 +8,8 @@ import {
   type Unit, type InsertUnit, type UnitMember, type InsertUnitMember,
   type Scene, type InsertScene, type SceneParticipant, type InsertSceneParticipant,
   type AnalyticsEvent, type InsertAnalyticsEvent,
+  type SceneAsk, type InsertSceneAsk, type SceneResponse, type InsertSceneResponse,
+  type UserFeedback, type InsertUserFeedback, type SceneAskWithDetails,
   type UserWithDetails, type MatchWithDetails, type UnitWithDetails, type SceneWithDetails
 } from "@shared/schema";
 import { db } from "./db";
@@ -618,5 +620,127 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(analyticsEvents).where(eq(analyticsEvents.userId, userId));
     }
     return await db.select().from(analyticsEvents);
+  }
+
+  // Scene Ask operations
+  async createSceneAsk(insertSceneAsk: InsertSceneAsk): Promise<SceneAsk> {
+    const [sceneAsk] = await db
+      .insert(sceneAsks)
+      .values(insertSceneAsk)
+      .returning();
+    return sceneAsk;
+  }
+
+  async getSceneAsks(): Promise<SceneAskWithDetails[]> {
+    const sceneAskData = await db
+      .select({
+        sceneAsk: sceneAsks,
+        user: users,
+        response: sceneResponses,
+        responseUser: users
+      })
+      .from(sceneAsks)
+      .innerJoin(users, eq(sceneAsks.userId, users.id))
+      .leftJoin(sceneResponses, eq(sceneResponses.sceneAskId, sceneAsks.id))
+      .leftJoin(users, eq(sceneResponses.userId, users.id))
+      .where(eq(sceneAsks.isActive, true))
+      .orderBy(sceneAsks.createdAt);
+
+    const sceneAsksMap = new Map<number, SceneAskWithDetails>();
+    
+    sceneAskData.forEach(({ sceneAsk, user, response, responseUser }) => {
+      if (!sceneAsksMap.has(sceneAsk.id)) {
+        sceneAsksMap.set(sceneAsk.id, {
+          ...sceneAsk,
+          user,
+          responses: [],
+          responseCount: 0
+        });
+      }
+      
+      const sceneAskDetails = sceneAsksMap.get(sceneAsk.id)!;
+      if (response && responseUser) {
+        sceneAskDetails.responses.push({ ...response, user: responseUser });
+      }
+    });
+
+    return Array.from(sceneAsksMap.values()).map(sceneAsk => ({
+      ...sceneAsk,
+      responseCount: sceneAsk.responses.length
+    }));
+  }
+
+  async getSceneAskById(id: number): Promise<SceneAskWithDetails | undefined> {
+    const sceneAskData = await db
+      .select({
+        sceneAsk: sceneAsks,
+        user: users,
+        response: sceneResponses,
+        responseUser: users
+      })
+      .from(sceneAsks)
+      .innerJoin(users, eq(sceneAsks.userId, users.id))
+      .leftJoin(sceneResponses, eq(sceneResponses.sceneAskId, sceneAsks.id))
+      .leftJoin(users, eq(sceneResponses.userId, users.id))
+      .where(eq(sceneAsks.id, id));
+
+    if (sceneAskData.length === 0) return undefined;
+
+    const sceneAsk = sceneAskData[0].sceneAsk;
+    const user = sceneAskData[0].user;
+    const responses = sceneAskData
+      .filter(row => row.response && row.responseUser)
+      .map(row => ({ ...row.response!, user: row.responseUser! }));
+
+    return {
+      ...sceneAsk,
+      user,
+      responses,
+      responseCount: responses.length
+    };
+  }
+
+  async respondToSceneAsk(insertResponse: InsertSceneResponse): Promise<SceneResponse> {
+    const [response] = await db
+      .insert(sceneResponses)
+      .values(insertResponse)
+      .returning();
+
+    // Update counters
+    if (insertResponse.responseType === 'join') {
+      await db
+        .update(sceneAsks)
+        .set({ joinCount: db.raw('join_count + 1') })
+        .where(eq(sceneAsks.id, insertResponse.sceneAskId));
+    } else if (insertResponse.responseType === 'help') {
+      await db
+        .update(sceneAsks)
+        .set({ helpCount: db.raw('help_count + 1') })
+        .where(eq(sceneAsks.id, insertResponse.sceneAskId));
+    }
+
+    return response;
+  }
+
+  async addUserFeedback(insertFeedback: InsertUserFeedback): Promise<UserFeedback> {
+    const [feedback] = await db
+      .insert(userFeedback)
+      .values(insertFeedback)
+      .returning();
+    return feedback;
+  }
+
+  async updateUserOnboarding(userId: number, data: { currentMood: string; purpose: string; offerNeed: string }): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        currentMood: data.currentMood,
+        purpose: data.purpose,
+        offerNeed: data.offerNeed,
+        onboardingCompleted: true
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
   }
 }
