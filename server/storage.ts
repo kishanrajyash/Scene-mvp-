@@ -95,6 +95,9 @@ export class MemStorage implements IStorage {
   private scenes: Map<number, Scene> = new Map();
   private sceneParticipants: Map<number, SceneParticipant> = new Map();
   private analyticsEvents: Map<number, AnalyticsEvent> = new Map();
+  private sceneAsks: Map<number, SceneAsk> = new Map();
+  private sceneResponses: Map<number, SceneResponse> = new Map();
+  private userFeedback: Map<number, UserFeedback> = new Map();
   
   private currentUserId = 1;
   private currentActivityId = 1;
@@ -108,6 +111,9 @@ export class MemStorage implements IStorage {
   private currentSceneId = 1;
   private currentSceneParticipantId = 1;
   private currentAnalyticsEventId = 1;
+  private currentSceneAskId = 1;
+  private currentSceneResponseId = 1;
+  private currentUserFeedbackId = 1;
 
   constructor() {
     this.initializeData();
@@ -817,10 +823,90 @@ export class MemStorage implements IStorage {
     }
     return events;
   }
+
+  async createSceneAsk(insertSceneAsk: InsertSceneAsk): Promise<SceneAsk> {
+    const sceneAsk: SceneAsk = {
+      id: this.currentSceneAskId++,
+      ...insertSceneAsk,
+      createdAt: new Date(),
+    };
+    this.sceneAsks.set(sceneAsk.id, sceneAsk);
+    return sceneAsk;
+  }
+
+  async getSceneAsks(): Promise<SceneAskWithDetails[]> {
+    const sceneAsks = Array.from(this.sceneAsks.values());
+    const sceneAsksWithDetails: SceneAskWithDetails[] = [];
+    
+    for (const sceneAsk of sceneAsks) {
+      const user = this.users.get(sceneAsk.userId);
+      if (user) {
+        const responses = Array.from(this.sceneResponses.values()).filter(r => r.sceneAskId === sceneAsk.id);
+        sceneAsksWithDetails.push({
+          ...sceneAsk,
+          user,
+          responses
+        });
+      }
+    }
+    
+    return sceneAsksWithDetails.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getSceneAskById(id: number): Promise<SceneAskWithDetails | undefined> {
+    const sceneAsk = this.sceneAsks.get(id);
+    if (!sceneAsk) return undefined;
+    
+    const user = this.users.get(sceneAsk.userId);
+    if (!user) return undefined;
+    
+    const responses = Array.from(this.sceneResponses.values()).filter(r => r.sceneAskId === id);
+    return {
+      ...sceneAsk,
+      user,
+      responses
+    };
+  }
+
+  async respondToSceneAsk(insertResponse: InsertSceneResponse): Promise<SceneResponse> {
+    const response: SceneResponse = {
+      id: this.currentSceneResponseId++,
+      ...insertResponse,
+      createdAt: new Date(),
+    };
+    this.sceneResponses.set(response.id, response);
+    return response;
+  }
+
+  async addUserFeedback(insertFeedback: InsertUserFeedback): Promise<UserFeedback> {
+    const feedback: UserFeedback = {
+      id: this.currentUserFeedbackId++,
+      ...insertFeedback,
+      createdAt: new Date(),
+    };
+    this.userFeedback.set(feedback.id, feedback);
+    return feedback;
+  }
+
+  async updateUserOnboarding(userId: number, data: { currentMood: string; purpose: string; offerNeed: string }): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = {
+      ...user,
+      currentMood: data.currentMood,
+      purpose: data.purpose,
+      offerNeed: data.offerNeed,
+      onboardingCompleted: true
+    };
+    
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
 }
 
 // Import database storage
 import { DatabaseStorage } from "./storage-db";
 
 // Use database storage instead of memory storage
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

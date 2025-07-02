@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "wouter";
 import Header from "@/components/header";
 import Onboarding from "@/components/onboarding";
 import SceneAskForm from "@/components/scene-ask-form";
 import SceneFeed from "@/components/scene-feed";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Users, Sparkles, MessageCircle } from "lucide-react";
+import { Heart, Users, Sparkles, Plus, Search } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function Home() {
@@ -70,27 +71,31 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Quick Actions */}
+        {/* Main Actions */}
         <div className="grid grid-cols-2 gap-4">
-          <Card className="scene-card-compact hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4 text-center">
-              <Users className="w-8 h-8 mx-auto text-primary mb-2" />
-              <h3 className="font-medium text-sm">Find People</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Connect with others
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/activities">
+            <Card className="scene-card-compact hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-4 text-center">
+                <Plus className="w-8 h-8 mx-auto text-primary mb-2" />
+                <h3 className="font-medium text-sm">Add Activity</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Create something to do
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
           
-          <Card className="scene-card-compact hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4 text-center">
-              <MessageCircle className="w-8 h-8 mx-auto text-secondary mb-2" />
-              <h3 className="font-medium text-sm">Share Story</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Tell your journey
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/scenes">
+            <Card className="scene-card-compact hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-4 text-center">
+                <Search className="w-8 h-8 mx-auto text-secondary mb-2" />
+                <h3 className="font-medium text-sm">Find Scenes</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Join activities near you
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Scene Ask Form */}

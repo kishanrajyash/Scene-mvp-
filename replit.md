@@ -145,6 +145,9 @@ Changelog:
 - June 25, 2025. Fixed Units functionality with proper API routes, form validation, and TypeScript types
 - June 25, 2025. Removed personality results from dashboard home screen per user feedback
 - June 25, 2025. Enhanced card layouts with improved spacing and responsive design
+- July 2, 2025. Successfully migrated from Replit agent to standard Replit environment
+- July 2, 2025. Simplified main UI: removed "Find People" and "Post Journal" options, replaced with clear "Add Activity" and "Find Scenes" actions
+- July 2, 2025. Made main action buttons functional with proper navigation links to activities and scenes pages
 ```
 
 ## User Preferences
